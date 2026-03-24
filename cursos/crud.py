@@ -1,17 +1,27 @@
 from sqlalchemy.orm import Session
-from models import Curso
+import models
 import dtos
 
+# --- CONSULTAS GENERALES ---
+
 def get_cursos(db: Session):
-    return db.query(Curso).all()
+    """Trae todos los cursos existentes. Útil para la lista general en Android."""
+    return db.query(models.Curso).all()
 
 def find_curso(db: Session, curso_id: int):
-    return db.query(Curso).filter(Curso.id == curso_id).first()
+    """Busca un curso específico por su ID único."""
+    return db.query(models.Curso).filter(models.Curso.id == curso_id).first()
+
+
+# --- ACCIONES GLOBALES ---
 
 def crear_curso(db: Session, curso: dtos.CursoCreate):
-    db_curso = Curso(
+    """
+    Crea un nuevo curso vinculándolo al ID del profesor.
+    """
+    db_curso = models.Curso(
         nombre_del_curso=curso.nombre_del_curso,
-        id_del_profesor=curso.id_del_profesor,
+        id_del_profesor=curso.id_del_profesor, 
         descripcion=curso.descripcion,
         fecha_de_inicio=curso.fecha_de_inicio,
         fecha_de_fin=curso.fecha_de_fin
@@ -20,23 +30,15 @@ def crear_curso(db: Session, curso: dtos.CursoCreate):
     db.commit()
     db.refresh(db_curso)
     return db_curso
-def actualizar_curso(db: Session, curso_id: int, curso_update: dtos.CursoCreate):
-    db_curso = find_curso(db, curso_id)
-    if db_curso is None:
-        return None
-    db_curso.nombre_del_curso = curso_update.nombre_del_curso
-    db_curso.id_del_profesor = curso_update.id_del_profesor
-    db_curso.descripcion = curso_update.descripcion
-    db_curso.fecha_de_inicio = curso_update.fecha_de_inicio
-    db_curso.fecha_de_fin = curso_update.fecha_de_fin
-    db.commit()
-    db.refresh(db_curso)
-    return db_curso
 
-def eliminar_curso(db: Session, curso_id: int):
+def eliminar_curso_global(db: Session, curso_id: int):
+    """
+    Elimina un curso sin validar quién lo hace (Uso administrativo).
+    Gracias al CASCADE en models.py, limpia las inscripciones automáticamente.
+    """
     db_curso = find_curso(db, curso_id)
-    if db_curso is None:
-        return None
-    db.delete(db_curso)
-    db.commit()
-    return db_curso
+    if db_curso:
+        db.delete(db_curso)
+        db.commit()
+        return True
+    return False
