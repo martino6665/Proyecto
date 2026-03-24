@@ -5,12 +5,11 @@ import models, dtos
 import cursos.crud as crud
 from database import SessionLocal, engine
 
-# Crea las tablas en la base de datos al iniciar
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="API de Gestión de Cursos - Octavo Semestre")
 
-# Dependencia para obtener la sesión de la base de datos
+
 def get_db():
     db = SessionLocal()
     try:
@@ -18,7 +17,6 @@ def get_db():
     finally:
         db.close()
 
-# --- RUTA RAÍZ (Agregada para Health Check de Render) ---
 @app.get("/")
 def read_root():
     return {
