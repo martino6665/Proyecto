@@ -10,10 +10,7 @@ import usuarios.crud_alumnos as crud_alumnos
 import usuarios.crud_profesores as crud_profesores
 from database import SessionLocal, engine
 
-<<<<<<< HEAD
 # Inicialización de la base de datos
-=======
->>>>>>> 60706dfd3f7e17c380b69dbd054bec4d1aad8b9b
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
@@ -22,11 +19,7 @@ app = FastAPI(
     version="1.2.0"
 )
 
-<<<<<<< HEAD
 # Dependencia de DB
-=======
-
->>>>>>> 60706dfd3f70e17c380b69dbd054bec4d1aad8b9b
 def get_db():
     db = SessionLocal()
     try:
@@ -34,11 +27,7 @@ def get_db():
     finally:
         db.close()
 
-<<<<<<< HEAD
 @app.get("/", tags=["General"])
-=======
-@app.get("/")
->>>>>>> 60706dfd3f7e17c380b69dbd054bec4d1aad8b9b
 def read_root():
     return {"status": "Online", "msg": "API VisionEducation v1.2"}
 
