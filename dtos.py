@@ -2,6 +2,17 @@ from pydantic import BaseModel
 import datetime
 from typing import Optional
 
+# --- NUEVO: ESQUEMA PARA LOGIN (ESTO ES LO QUE ANDROID MANDA) ---
+class LoginRequest(BaseModel):
+    usuario: str  # Android manda "usuario", no "nombre"
+    password: str
+
+# --- NUEVO: ESQUEMA PARA RESPUESTA DE LOGIN (LO QUE ANDROID ESPERA) ---
+class LoginResponse(BaseModel):
+    estado: str   # Android espera "estado" para leer "En línea" o "Exitoso"
+    mensaje: str
+    rol: Optional[str] = None
+
 # --- ESQUEMAS PARA CURSOS ---
 class CursoBase(BaseModel):
     nombre_del_curso: str
@@ -52,9 +63,7 @@ class InscripcionCreate(BaseModel):
 
 class InscripcionResponse(InscripcionCreate):
     id: int
-    # --- COMPLEMENTOS AÑADIDOS ---
-    calificacion: Optional[int] = None  # Permite que la nota sea nula al inicio
-    # fecha_registro: Optional[datetime.datetime] = None # Descomenta si añadiste la fecha en models
+    calificacion: Optional[int] = None  
     
     class Config:
         from_attributes = True
