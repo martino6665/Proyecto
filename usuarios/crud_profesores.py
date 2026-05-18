@@ -4,22 +4,19 @@ import models, dtos
 # --- REGISTRO DE PROFESOR ---
 
 def crear_profesor(db: Session, usuario: dtos.ProfesorCreate):
-    """
-    Registra un nuevo profesor en la tabla unificada de usuarios.
-    """
     db_usuario = models.Usuario(
+        nombre_usuario=usuario.nombre_usuario,
         password=usuario.password,
         nombre=usuario.nombre,
         apellido_paterno=usuario.apellido_paterno,
         apellido_materno=usuario.apellido_materno,
         fecha_nacimiento=usuario.fecha_nacimiento,
-        rol="profesor"
+        rol="profesor"  # <--- ASIGNACIÓN AUTOMÁTICA Y SEGURA
     )
     db.add(db_usuario)
     db.commit()
     db.refresh(db_usuario)
     return db_usuario
-
 # --- GESTIÓN DE CURSOS PROPIOS ---
 
 def listar_mis_cursos_profesor(db: Session, maestro_id: int):

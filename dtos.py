@@ -31,10 +31,13 @@ class CursoResponse(CursoBase):
 
 # --- BASE PARA USUARIOS ---
 class PersonaBase(BaseModel):
+    nombre_usuario: str # <--- Agrégalo aquí
     nombre: str
     apellido_paterno: str
     apellido_materno: str
     fecha_nacimiento: datetime.date
+
+# Al heredar de PersonaBase, AlumnoCreate y ProfesorCreate ya lo incluirán.
 
 # --- Lógica para Alumnos ---
 class AlumnoCreate(PersonaBase):

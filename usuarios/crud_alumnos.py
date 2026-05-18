@@ -4,16 +4,14 @@ import models, dtos
 # --- GESTIÓN DE IDENTIDAD ---
 
 def crear_alumno(db: Session, usuario: dtos.AlumnoCreate):
-    """
-    Registra un nuevo estudiante en la tabla unificada de usuarios.
-    """
     db_usuario = models.Usuario(
-        password=usuario.password,
+        nombre_usuario=usuario.nombre_usuario,
+        password=usuario.password,  # En apps reales aquí se usaría un hash/encriptación
         nombre=usuario.nombre,
         apellido_paterno=usuario.apellido_paterno,
         apellido_materno=usuario.apellido_materno,
         fecha_nacimiento=usuario.fecha_nacimiento,
-        rol="alumno" 
+        rol="alumno"  # <--- ASIGNACIÓN AUTOMÁTICA Y SEGURA
     )
     db.add(db_usuario)
     db.commit()

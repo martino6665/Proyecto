@@ -6,6 +6,7 @@ class Usuario(Base):
     __tablename__ = "usuarios"
     id = Column(Integer, primary_key=True, index=True)
     password = Column(String(255), nullable=False)
+    nombre_usuario = Column(String(50), unique=True, index=True, nullable=False)
     nombre = Column(String(100), index=True)
     apellido_paterno = Column(String(100))
     apellido_materno = Column(String(100))
