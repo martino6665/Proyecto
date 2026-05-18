@@ -11,17 +11,19 @@ import usuarios.crud_alumnos as crud_alumnos
 import usuarios.crud_profesores as crud_profesores
 from database import SessionLocal, engine
 
-# Inicialización de la base de datos
-models.Base.metadata.create_all(bind=engine)
+# --- INICIALIZACIÓN DE LA BASE DE DATOS (MODO CORRECCIÓN TOTAL) ---
+# Estas líneas obligan a la base de datos a actualizarse a la fuerza
+models.Base.metadata.bind = engine
+models.Base.metadata.drop_all(bind=engine)   # <--- BORRA LAS TABLAS VIEJAS
+models.Base.metadata.create_all(bind=engine) # <--- CREA LAS TABLAS NUEVAS CORRECTAS
 
 app = FastAPI(
     title="VisionEducation",
     description="Sistema de gestión de cursos Universitarios - CUValles",
-    version="1.3.0"
+    version="1.4.0"
 )
 
 # --- CONFIGURACIÓN DE CORS ---
-# Permite que la App de Android se conecte desde cualquier red
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -40,31 +42,29 @@ def get_db():
 
 @app.get("/", tags=["General"])
 def read_root():
-    return {"estado": "En línea", "mensaje": "API VisionEducation v1.3 - CUValles"}
+    return {"estado": "En línea", "mensaje": "API VisionEducation v1.4 - Tablas Reiniciadas"}
 
 # --- REGISTRO Y ACCESO ---
 
 @app.post("/registro/alumno", response_model=dtos.AlumnoResponse, tags=["Registro"])
 def registrar_alumno(alumno: dtos.AlumnoCreate, db: Session = Depends(get_db)):
-    # El CRUD debe asignar rol="alumno" internamente
     return crud_alumnos.crear_alumno(db=db, usuario=alumno)
 
 @app.post("/registro/profesor", response_model=dtos.ProfesorResponse, tags=["Registro"])
 def registrar_profesor(profesor: dtos.ProfesorCreate, db: Session = Depends(get_db)):
-    # El CRUD debe asignar rol="profesor" internamente
     return crud_profesores.crear_profesor(db=db, usuario=profesor)
 
 # --- LOGIN PROFESIONAL (Sincronizado con Android) ---
 @app.post("/login", response_model=dtos.LoginResponse, tags=["Acceso"])
 def login(login_data: dtos.LoginRequest, db: Session = Depends(get_db)):
-    # 1. Bloqueo de datos vacíos (Quita espacios extras con .strip())
+    # 1. Bloqueo de datos vacíos
     usuario_ingresado = login_data.usuario.strip()
     pass_ingresada = login_data.password.strip()
 
     if not usuario_ingresado or not pass_ingresada:
         return {"estado": "Error", "mensaje": "Por favor, llena todos los campos", "rol": None}
 
-    # 2. Búsqueda por 'nombre_usuario' (el apodo ej. Martin11)
+    # 2. Búsqueda por 'nombre_usuario' (el apodo)
     user = db.query(models.Usuario).filter(models.Usuario.nombre_usuario == usuario_ingresado).first()
     
     if not user:
@@ -74,8 +74,7 @@ def login(login_data: dtos.LoginRequest, db: Session = Depends(get_db)):
     if user.password != pass_ingresada:
         return {"estado": "Error", "mensaje": "La contraseña es incorrecta", "rol": None}
     
-    # 4. Respuesta exitosa
-    # Mandamos el rol para que Android sepa si mandarlo al Dashboard de Alumno o Profe
+    # 4. Respuesta exitosa para Android
     return {
         "estado": "Exitoso",
         "mensaje": f"¡Bienvenido de nuevo, {user.nombre}!",
