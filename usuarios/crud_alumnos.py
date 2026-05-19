@@ -3,10 +3,11 @@ import models, dtos
 
 # --- GESTIÓN DE IDENTIDAD ---
 
+# usuarios/crud_alumnos.py
 def crear_alumno(db: Session, usuario: dtos.AlumnoCreate):
     db_usuario = models.Usuario(
-        nombre_usuario=usuario.nombre_usuario,
-        password=usuario.password,  # En apps reales aquí se usaría un hash/encriptación
+        nombre_usuario=usuario.nombre_usuario, # <--- Verifica que en dtos.py se llame así
+        password=usuario.password,
         nombre=usuario.nombre,
         apellido_paterno=usuario.apellido_paterno,
         apellido_materno=usuario.apellido_materno,

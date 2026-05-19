@@ -11,19 +11,16 @@ import usuarios.crud_alumnos as crud_alumnos
 import usuarios.crud_profesores as crud_profesores
 from database import SessionLocal, engine
 
-# --- INICIALIZACIÓN DE LA BASE DE DATOS (MODO CORRECCIÓN TOTAL) ---
-# Estas líneas obligan a la base de datos a actualizarse a la fuerza
-models.Base.metadata.bind = engine
-models.Base.metadata.drop_all(bind=engine)   # <--- BORRA LAS TABLAS VIEJAS
-models.Base.metadata.create_all(bind=engine) # <--- CREA LAS TABLAS NUEVAS CORRECTAS
+# --- INICIALIZACIÓN ---
+# Solo creamos las tablas si no existen.
+models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="VisionEducation",
-    description="Sistema de gestión de cursos Universitarios - CUValles",
-    version="1.4.0"
+    description="Sistema de gestión de cursos Universitarios",
+    version="1.5.0"
 )
 
-# --- CONFIGURACIÓN DE CORS ---
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -32,7 +29,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Dependencia de DB
 def get_db():
     db = SessionLocal()
     try:
@@ -42,10 +38,9 @@ def get_db():
 
 @app.get("/", tags=["General"])
 def read_root():
-    return {"estado": "En línea", "mensaje": "API VisionEducation v1.4 - Tablas Reiniciadas"}
+    return {"estado": "En línea", "mensaje": "VisionEducation API - Estable"}
 
-# --- REGISTRO Y ACCESO ---
-
+# --- REGISTRO ---
 @app.post("/registro/alumno", response_model=dtos.AlumnoResponse, tags=["Registro"])
 def registrar_alumno(alumno: dtos.AlumnoCreate, db: Session = Depends(get_db)):
     return crud_alumnos.crear_alumno(db=db, usuario=alumno)
@@ -54,59 +49,40 @@ def registrar_alumno(alumno: dtos.AlumnoCreate, db: Session = Depends(get_db)):
 def registrar_profesor(profesor: dtos.ProfesorCreate, db: Session = Depends(get_db)):
     return crud_profesores.crear_profesor(db=db, usuario=profesor)
 
-# --- LOGIN PROFESIONAL (Sincronizado con Android) ---
+# --- LOGIN CORREGIDO (Sin código repetido) ---
 @app.post("/login", response_model=dtos.LoginResponse, tags=["Acceso"])
 def login(login_data: dtos.LoginRequest, db: Session = Depends(get_db)):
-    # 1. Bloqueo de datos vacíos
-    usuario_ingresado = login_data.usuario.strip()
-    pass_ingresada = login_data.password.strip()
+    # 1. Limpiamos los datos de entrada para evitar espacios accidentales
+    u_ingresado = login_data.nombre_usuario.strip()
+    p_ingresada = login_data.password.strip()
 
-    if not usuario_ingresado or not pass_ingresada:
-        return {"estado": "Error", "mensaje": "Por favor, llena todos los campos", "rol": None}
-
-    # 2. Búsqueda por 'nombre_usuario' (el apodo)
-    user = db.query(models.Usuario).filter(models.Usuario.nombre_usuario == usuario_ingresado).first()
+    # 2. Buscamos en la base de datos por el campo unificado
+    user = db.query(models.Usuario).filter(models.Usuario.nombre_usuario == u_ingresado).first()
     
+    # 3. Validaciones de existencia y contraseña
     if not user:
-        return {"estado": "Error", "mensaje": "El usuario no existe", "rol": None}
+        return {"estado": "Error", "mensaje": f"No existe el usuario: {u_ingresado}", "rol": None}
     
-    # 3. Validación de contraseña
-    if user.password != pass_ingresada:
-        return {"estado": "Error", "mensaje": "La contraseña es incorrecta", "rol": None}
+    if user.password != p_ingresada:
+        return {"estado": "Error", "mensaje": "Contraseña incorrecta", "rol": None}
     
-    # 4. Respuesta exitosa para Android
+    # 4. Respuesta exitosa
     return {
-        "estado": "Exitoso",
-        "mensaje": f"¡Bienvenido de nuevo, {user.nombre}!",
+        "estado": "Exitoso", 
+        "mensaje": f"¡Bienvenido de nuevo, {user.nombre}!", 
         "rol": user.rol
     }
 
-# --- MÓDULO ALUMNOS ---
-
-@app.get("/alumnos/cursos/buscar/{curso_id}", response_model=dtos.CursoResponse, tags=["Alumnos"])
-def buscar_curso_alumno(curso_id: int, db: Session = Depends(get_db)):
-    db_curso = crud_cursos.find_curso(db, curso_id)
-    if not db_curso:
-        raise HTTPException(status_code=404, detail="Curso no encontrado")
-    return db_curso
-
-@app.post("/alumnos/inscribir", response_model=dtos.InscripcionResponse, tags=["Alumnos"])
-def inscribirse(inscripcion: dtos.InscripcionCreate, db: Session = Depends(get_db)):
-    return crud_inscripcion.inscribir_alumno(db, inscripcion)
-
+# --- ALUMNOS ---
 @app.get("/alumnos/{alumno_id}/mis-cursos", response_model=List[dtos.CursoResponse], tags=["Alumnos"])
 def ver_cursos_inscritos(alumno_id: int, db: Session = Depends(get_db)):
     return crud_alumnos.listar_mis_cursos_alumno(db, alumno_id)
 
-@app.delete("/alumnos/desinscribir/{alumno_id}/{curso_id}", tags=["Alumnos"])
-def dar_de_baja_materia(alumno_id: int, curso_id: int, db: Session = Depends(get_db)):
-    exito = crud_inscripcion.dar_de_baja(db, alumno_id, curso_id)
-    if not exito:
-        raise HTTPException(status_code=404, detail="No se encontró la inscripción")
-    return {"mensaje": "Materia dada de baja correctamente"}
+@app.post("/alumnos/inscribir", response_model=dtos.InscripcionResponse, tags=["Alumnos"])
+def inscribirse(inscripcion: dtos.InscripcionCreate, db: Session = Depends(get_db)):
+    return crud_inscripcion.inscribir_alumno(db, inscribir)
 
-# --- MÓDULO PROFESORES ---
-
+# --- PROFESORES ---
 @app.post("/profesores/cursos/crear", response_model=dtos.CursoResponse, tags=["Profesores"])
 def crear_materia(curso: dtos.CursoCreate, db: Session = Depends(get_db)):
     return crud_cursos.crear_curso(db=db, curso=curso)
@@ -114,17 +90,3 @@ def crear_materia(curso: dtos.CursoCreate, db: Session = Depends(get_db)):
 @app.get("/profesores/{maestro_id}/mis-cursos", response_model=List[dtos.CursoResponse], tags=["Profesores"])
 def ver_materias_asignadas(maestro_id: int, db: Session = Depends(get_db)):
     return crud_profesores.listar_mis_cursos_profesor(db, maestro_id)
-
-@app.put("/profesores/cursos/editar/{curso_id}/{maestro_id}", response_model=dtos.CursoResponse, tags=["Profesores"])
-def editar_materia(curso_id: int, maestro_id: int, curso: dtos.CursoCreate, db: Session = Depends(get_db)):
-    db_curso = crud_profesores.actualizar_curso_maestro(db, curso_id, maestro_id, curso)
-    if not db_curso:
-        raise HTTPException(status_code=403, detail="Sin permiso o curso inexistente")
-    return db_curso
-
-@app.put("/profesores/calificar/{alumno_id}/{curso_id}", response_model=dtos.InscripcionResponse, tags=["Profesores"])
-def asignar_nota(alumno_id: int, curso_id: int, nota_data: dtos.CalificacionUpdate, db: Session = Depends(get_db)):
-    resultado = crud_inscripcion.assign_calificacion(db, alumno_id, curso_id, nota_data.nota)
-    if not resultado:
-        raise HTTPException(status_code=404, detail="Inscripción no encontrada")
-    return resultado

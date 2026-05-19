@@ -2,16 +2,42 @@ from pydantic import BaseModel
 import datetime
 from typing import Optional
 
-# --- NUEVO: ESQUEMA PARA LOGIN (ESTO ES LO QUE ANDROID MANDA) ---
+# --- ESQUEMA PARA LOGIN ---
 class LoginRequest(BaseModel):
-    usuario: str  # Android manda "usuario", no "nombre"
+    nombre_usuario: str  # CAMBIO: Antes decía 'usuario'. Ahora coincide con PersonaBase.
     password: str
 
-# --- NUEVO: ESQUEMA PARA RESPUESTA DE LOGIN (LO QUE ANDROID ESPERA) ---
+# --- RESPUESTA DE LOGIN ---
 class LoginResponse(BaseModel):
-    estado: str   # Android espera "estado" para leer "En línea" o "Exitoso"
+    estado: str   
     mensaje: str
     rol: Optional[str] = None
+
+# --- BASE PARA USUARIOS ---
+class PersonaBase(BaseModel):
+    nombre_usuario: str 
+    nombre: str
+    apellido_paterno: str
+    apellido_materno: str
+    fecha_nacimiento: datetime.date
+
+class AlumnoCreate(PersonaBase):
+    password: str
+
+class AlumnoResponse(PersonaBase):
+    id: int  
+    rol: str
+    class Config:
+        from_attributes = True
+
+class ProfesorCreate(PersonaBase):
+    password: str
+
+class ProfesorResponse(PersonaBase):
+    id: int  
+    rol: str
+    class Config:
+        from_attributes = True
 
 # --- ESQUEMAS PARA CURSOS ---
 class CursoBase(BaseModel):
@@ -29,37 +55,6 @@ class CursoResponse(CursoBase):
     class Config:
         from_attributes = True
 
-# --- BASE PARA USUARIOS ---
-class PersonaBase(BaseModel):
-    nombre_usuario: str # <--- Agrégalo aquí
-    nombre: str
-    apellido_paterno: str
-    apellido_materno: str
-    fecha_nacimiento: datetime.date
-
-# Al heredar de PersonaBase, AlumnoCreate y ProfesorCreate ya lo incluirán.
-
-# --- Lógica para Alumnos ---
-class AlumnoCreate(PersonaBase):
-    password: str
-
-class AlumnoResponse(PersonaBase):
-    id: int  
-    rol: str
-    class Config:
-        from_attributes = True
-
-# --- Lógica para Profesores ---
-class ProfesorCreate(PersonaBase):
-    password: str
-
-class ProfesorResponse(PersonaBase):
-    id: int  
-    rol: str
-    class Config:
-        from_attributes = True
-
-# --- ESQUEMA PARA INSCRIPCIONES ---
 class InscripcionCreate(BaseModel):
     alumno_id: int
     curso_id: int
@@ -67,11 +62,8 @@ class InscripcionCreate(BaseModel):
 class InscripcionResponse(InscripcionCreate):
     id: int
     calificacion: Optional[int] = None  
-    
     class Config:
         from_attributes = True
 
-# --- ESQUEMA PARA ACTUALIZAR CALIFICACIÓN ---
 class CalificacionUpdate(BaseModel):
-    """DTO específico para que el profesor envíe solo la nota."""
     nota: int

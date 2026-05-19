@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Date, DateTime, ForeignKey, func
+from sqlalchemy import Column, Integer, String, Date, ForeignKey
 from sqlalchemy.orm import relationship
 from database import Base
 
@@ -22,17 +22,11 @@ class Curso(Base):
     fecha_de_inicio = Column(Date)
     fecha_de_fin = Column(Date)
     
-    # Esta línea limpia las inscripciones cuando el curso se borra
     inscripciones = relationship("Inscripcion", cascade="all, delete-orphan", backref="curso")
 
 class Inscripcion(Base):
     __tablename__ = "inscripciones"
     id = Column(Integer, primary_key=True, index=True)
-    
-    # Llaves foráneas con borrado en cascada a nivel DB
     alumno_id = Column(Integer, ForeignKey("usuarios.id", ondelete="CASCADE"))
     curso_id = Column(Integer, ForeignKey("cursos.id", ondelete="CASCADE"))
-
-    # --- CAMPOS ADICIONALES ACTUALIZADOS ---
-    calificacion = Column(Integer, nullable=True) # Permite que la nota sea nula al inicio
-    fecha_registro = Column(DateTime, default=func.now()) # Se genera automáticamente al inscribirse
+    calificacion = Column(Integer, nullable=True)
