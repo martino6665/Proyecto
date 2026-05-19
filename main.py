@@ -11,9 +11,13 @@ import usuarios.crud_alumnos as crud_alumnos
 import usuarios.crud_profesores as crud_profesores
 from database import SessionLocal, engine
 
-# --- INICIALIZACIÓN ---
-models.Base.metadata.create_all(bind=engine)
+# --- INICIALIZACIÓN (Modificación Temporal para Limpiar Render) ---
 
+# 1. Primero tumbamos absolutamente todas las tablas viejas y corruptas
+models.Base.metadata.drop_all(bind=engine)
+
+# 2. Inmediatamente después, creamos la estructura unificada al 100% desde cero
+models.Base.metadata.create_all(bind=engine)
 app = FastAPI(
     title="VisionEducation",
     description="Sistema de gestión de cursos Universitarios",
