@@ -2,18 +2,30 @@ from pydantic import BaseModel
 import datetime
 from typing import Optional
 
-# --- ESQUEMA PARA LOGIN ---
+# ==========================================
+# --- ESQUEMAS DE ACCESO Y RESPUESTAS SIMPLES ---
+# ==========================================
+
 class LoginRequest(BaseModel):
-    nombre_usuario: str  # CAMBIO: Antes decía 'usuario'. Ahora coincide con PersonaBase.
+    nombre_usuario: str  
     password: str
 
-# --- RESPUESTA DE LOGIN ---
 class LoginResponse(BaseModel):
     estado: str   
     mensaje: str
     rol: Optional[str] = None
 
-# --- BASE PARA USUARIOS ---
+# NUEVA: Para respuestas estándar de éxito/error (Bajas, Eliminaciones, Notas)
+class SimpleResponse(BaseModel):
+    estado: str
+    mensaje: str
+
+
+# ==========================================
+# --- MÓDULO USUARIOS (ALUMNOS Y PROFESORES) ---
+# ==========================================
+
+# Base con tipos de datos de lectura estándar
 class PersonaBase(BaseModel):
     nombre_usuario: str 
     nombre: str
@@ -21,8 +33,14 @@ class PersonaBase(BaseModel):
     apellido_materno: str
     fecha_nacimiento: datetime.date
 
-class AlumnoCreate(PersonaBase):
+# MEJORA: Recibe la fecha como String para que FastAPI no truene si Postman o Android mandan formatos con variaciones
+class AlumnoCreate(BaseModel):
+    nombre_usuario: str
     password: str
+    nombre: str
+    apellido_paterno: str
+    apellido_materno: str
+    fecha_nacimiento: str  # Espera un String. Se parsea en el CRUD.
 
 class AlumnoResponse(PersonaBase):
     id: int  
@@ -30,8 +48,14 @@ class AlumnoResponse(PersonaBase):
     class Config:
         from_attributes = True
 
-class ProfesorCreate(PersonaBase):
+# MEJORA: Igual que en alumnos, la entrada de fechas se flexibiliza a String para el transporte seguro
+class ProfesorCreate(BaseModel):
+    nombre_usuario: str
     password: str
+    nombre: str
+    apellido_paterno: str
+    apellido_materno: str
+    fecha_nacimiento: str  # Espera un String. Se parsea en el CRUD.
 
 class ProfesorResponse(PersonaBase):
     id: int  
@@ -39,7 +63,18 @@ class ProfesorResponse(PersonaBase):
     class Config:
         from_attributes = True
 
-# --- ESQUEMAS PARA CURSOS ---
+# NUEVA: Molde requerido para el nuevo endpoint global de búsqueda de usuarios
+class UsuarioResponse(PersonaBase):
+    id: int
+    rol: str
+    class Config:
+        from_attributes = True
+
+
+# ==========================================
+# --- MÓDULO CURSOS E INSCRIPCIONES ---
+# ==========================================
+
 class CursoBase(BaseModel):
     nombre_del_curso: str
     id_del_profesor: int
@@ -47,8 +82,13 @@ class CursoBase(BaseModel):
     fecha_de_inicio: datetime.date 
     fecha_de_fin: datetime.date
 
-class CursoCreate(CursoBase):
-    pass
+# MEJORA: Permite que el profesor envíe las fechas del nuevo curso como String para su procesamiento
+class CursoCreate(BaseModel):
+    nombre_del_curso: str
+    id_del_profesor: int
+    descripcion: str
+    fecha_de_inicio: str  # "YYYY-MM-DD"
+    fecha_de_fin: str     # "YYYY-MM-DD"
 
 class CursoResponse(CursoBase):
     id: int 

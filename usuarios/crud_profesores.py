@@ -1,70 +1,38 @@
+from datetime import datetime
 from sqlalchemy.orm import Session
-import models, dtos
+import models
+import dtos
 
-# --- REGISTRO DE PROFESOR ---
+# --- GESTIÓN DE IDENTIDAD ---
 
-def crear_profesor(db: Session, usuario: dtos.ProfesorCreate):
+def crear_profesor(db: Session, profesor: dtos.ProfesorCreate):
+    """
+    Registra un nuevo profesor en la tabla única de usuarios.
+    Convierte de forma segura la cadena String de la fecha a un objeto Date de Python.
+    """
+    # Parseo seguro de string "YYYY-MM-DD" a objeto datetime.date de SQLAlchemy
+    fecha_nacimiento_date = datetime.strptime(profesor.fecha_nacimiento.strip(), "%Y-%m-%d").date()
+
     db_usuario = models.Usuario(
-        nombre_usuario=usuario.nombre_usuario,
-        password=usuario.password,
-        nombre=usuario.nombre,
-        apellido_paterno=usuario.apellido_paterno,
-        apellido_materno=usuario.apellido_materno,
-        fecha_nacimiento=usuario.fecha_nacimiento,
-        rol="profesor"  # <--- ASIGNACIÓN AUTOMÁTICA Y SEGURA
+        nombre_usuario=profesor.nombre_usuario.strip(),
+        password=profesor.password.strip(),
+        nombre=profesor.nombre.strip(),
+        apellido_paterno=profesor.apellido_paterno.strip(),
+        apellido_materno=profesor.apellido_materno.strip(),
+        fecha_nacimiento=fecha_nacimiento_date,
+        rol="profesor"  # ASIGNACIÓN AUTOMÁTICA Y SEGURA ELIMINA ERRORES
     )
     db.add(db_usuario)
     db.commit()
     db.refresh(db_usuario)
     return db_usuario
-# --- GESTIÓN DE CURSOS PROPIOS ---
+
+
+# --- CONSULTAS DEL PROFESOR ---
 
 def listar_mis_cursos_profesor(db: Session, maestro_id: int):
     """
-    Lista solo los cursos donde este profesor es el titular asignado.
+    Trae todos los cursos que un profesor específico imparte (es dueño).
+    Aprovecha la relación relacional 'cursos_dictados' añadida en models.py.
     """
     return db.query(models.Curso).filter(models.Curso.id_del_profesor == maestro_id).all()
-
-def actualizar_curso_maestro(db: Session, curso_id: int, maestro_id: int, curso_update: dtos.CursoCreate):
-    """
-    Edita un curso solo si el maestro_id coincide con el creador (Seguridad).
-    """
-    db_curso = db.query(models.Curso).filter(
-        models.Curso.id == curso_id, 
-        models.Curso.id_del_profesor == maestro_id
-    ).first()
-    
-    if db_curso:
-        db_curso.nombre_del_curso = curso_update.nombre_del_curso
-        db_curso.descripcion = curso_update.descripcion
-        db_curso.fecha_de_inicio = curso_update.fecha_de_inicio
-        db_curso.fecha_de_fin = curso_update.fecha_de_fin
-        db.commit()
-        db.refresh(db_curso)
-    return db_curso
-
-def eliminar_curso_maestro(db: Session, curso_id: int, maestro_id: int):
-    """
-    Elimina el curso completo y dispara automáticamente el borrado 
-    en cascada de las inscripciones vinculadas.
-    """
-    db_curso = db.query(models.Curso).filter(
-        models.Curso.id == curso_id, 
-        models.Curso.id_del_profesor == maestro_id
-    ).first()
-    
-    if db_curso:
-        db.delete(db_curso)
-        db.commit()
-        return True
-    return False
-
-# --- FUNCIÓN DE APOYO PARA LOGIN ---
-
-def find_usuario(db: Session, login_data: str):
-    """
-    Permite buscar al profesor por su ID o Nombre para el acceso al sistema.
-    """
-    if login_data.isdigit():
-        return db.query(models.Usuario).filter(models.Usuario.id == int(login_data)).first()
-    return db.query(models.Usuario).filter(models.Usuario.nombre == login_data).first()

@@ -12,7 +12,6 @@ import usuarios.crud_profesores as crud_profesores
 from database import SessionLocal, engine
 
 # --- INICIALIZACIÓN ---
-# Solo creamos las tablas si no existen.
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
@@ -40,40 +39,53 @@ def get_db():
 def read_root():
     return {"estado": "En línea", "mensaje": "VisionEducation API - Estable"}
 
+
+# --- GENERAL / BÚSQUEDAS ---
+
+@app.get("/usuarios/buscar", response_model=List[dtos.UsuarioResponse], tags=["General"])
+def buscar_usuarios(query: str = "", db: Session = Depends(get_db)):
+    return crud_alumnos.buscar_usuarios_global(db, query)
+
+
 # --- REGISTRO ---
+
 @app.post("/registro/alumno", response_model=dtos.AlumnoResponse, tags=["Registro"])
 def registrar_alumno(alumno: dtos.AlumnoCreate, db: Session = Depends(get_db)):
-    return crud_alumnos.crear_alumno(db=db, usuario=alumno)
+    return crud_alumnos.crear_alumno(db, alumno)
 
 @app.post("/registro/profesor", response_model=dtos.ProfesorResponse, tags=["Registro"])
 def registrar_profesor(profesor: dtos.ProfesorCreate, db: Session = Depends(get_db)):
-    return crud_profesores.crear_profesor(db=db, usuario=profesor)
+    return crud_profesores.crear_profesor(db, profesor)
 
-# --- LOGIN CORREGIDO (Sin código repetido) ---
+
+# --- ACCESO / LOGIN ---
+
 @app.post("/login", response_model=dtos.LoginResponse, tags=["Acceso"])
 def login(login_data: dtos.LoginRequest, db: Session = Depends(get_db)):
-    # 1. Limpiamos los datos de entrada para evitar espacios accidentales
     u_ingresado = login_data.nombre_usuario.strip()
     p_ingresada = login_data.password.strip()
 
-    # 2. Buscamos en la base de datos por el campo unificado
     user = db.query(models.Usuario).filter(models.Usuario.nombre_usuario == u_ingresado).first()
     
-    # 3. Validaciones de existencia y contraseña
     if not user:
         return {"estado": "Error", "mensaje": f"No existe el usuario: {u_ingresado}", "rol": None}
     
     if user.password != p_ingresada:
         return {"estado": "Error", "mensaje": "Contraseña incorrecta", "rol": None}
     
-    # 4. Respuesta exitosa
     return {
         "estado": "Exitoso", 
         "mensaje": f"¡Bienvenido de nuevo, {user.nombre}!", 
         "rol": user.rol
     }
 
-# --- ALUMNOS ---
+
+# --- MÓDULO ALUMNOS ---
+
+@app.get("/alumnos/cursos/buscar", response_model=List[dtos.CursoResponse], tags=["Alumnos"])
+def buscar_cursos(query: str = "", db: Session = Depends(get_db)):
+    return crud_cursos.buscar_todos_los_cursos(db, query)
+
 @app.get("/alumnos/{alumno_id}/mis-cursos", response_model=List[dtos.CursoResponse], tags=["Alumnos"])
 def ver_cursos_inscritos(alumno_id: int, db: Session = Depends(get_db)):
     return crud_alumnos.listar_mis_cursos_alumno(db, alumno_id)
@@ -82,7 +94,13 @@ def ver_cursos_inscritos(alumno_id: int, db: Session = Depends(get_db)):
 def inscribirse(inscripcion: dtos.InscripcionCreate, db: Session = Depends(get_db)):
     return crud_inscripcion.inscribir_alumno(db, inscripcion)
 
-# --- PROFESORES ---
+@app.delete("/alumnos/desinscribir/{alumno_id}/{curso_id}", response_model=dtos.SimpleResponse, tags=["Alumnos"])
+def salir_de_curso(alumno_id: int, curso_id: int, db: Session = Depends(get_db)):
+    return crud_inscripcion.dar_de_baja_curso(db, alumno_id, curso_id)
+
+
+# --- MÓDULO PROFESORES ---
+
 @app.post("/profesores/cursos/crear", response_model=dtos.CursoResponse, tags=["Profesores"])
 def crear_materia(curso: dtos.CursoCreate, db: Session = Depends(get_db)):
     return crud_cursos.crear_curso(db=db, curso=curso)
@@ -90,3 +108,16 @@ def crear_materia(curso: dtos.CursoCreate, db: Session = Depends(get_db)):
 @app.get("/profesores/{maestro_id}/mis-cursos", response_model=List[dtos.CursoResponse], tags=["Profesores"])
 def ver_materias_asignadas(maestro_id: int, db: Session = Depends(get_db)):
     return crud_profesores.listar_mis_cursos_profesor(db, maestro_id)
+
+@app.put("/profesores/cursos/actualizar/{curso_id}/{maestro_id}", response_model=dtos.CursoResponse, tags=["Profesores"])
+def actualizar_materia(curso_id: int, maestro_id: int, curso_data: dtos.CursoCreate, db: Session = Depends(get_db)):
+    return crud_cursos.actualizar_curso_existente(db, curso_id, maestro_id, curso_data)
+
+@app.delete("/profesores/cursos/eliminar/{curso_id}/{maestro_id}", response_model=dtos.SimpleResponse, tags=["Profesores"])
+def eliminar_materia(curso_id: int, maestro_id: int, db: Session = Depends(get_db)):
+    return crud_cursos.eliminar_curso_existente(db, curso_id, maestro_id)
+
+# CORRECCIÓN EN ESPEJO: Llama a crud_inscripcion para gestionar la nota en la tabla intermedia
+@app.put("/profesores/calificar/{alumno_id}/{curso_id}", response_model=dtos.SimpleResponse, tags=["Profesores"])
+def asignar_calificacion(alumno_id: int, curso_id: int, calificacion: dtos.CalificacionUpdate, db: Session = Depends(get_db)):
+    return crud_inscripcion.calificar_alumno_curso(db, alumno_id, curso_id, calificacion.nota)
