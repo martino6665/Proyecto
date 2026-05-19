@@ -80,7 +80,7 @@ def ver_cursos_inscritos(alumno_id: int, db: Session = Depends(get_db)):
 
 @app.post("/alumnos/inscribir", response_model=dtos.InscripcionResponse, tags=["Alumnos"])
 def inscribirse(inscripcion: dtos.InscripcionCreate, db: Session = Depends(get_db)):
-    return crud_inscripcion.inscribir_alumno(db, inscribir)
+    return crud_inscripcion.inscribir_alumno(db, inscripcion)
 
 # --- PROFESORES ---
 @app.post("/profesores/cursos/crear", response_model=dtos.CursoResponse, tags=["Profesores"])
