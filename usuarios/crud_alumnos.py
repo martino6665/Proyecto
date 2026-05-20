@@ -62,3 +62,9 @@ def listar_mis_cursos_alumno(db: Session, alumno_id: int):
     ).filter(
         models.Inscripcion.alumno_id == alumno_id
     ).all()
+
+def listar_todos_los_alumnos(db: Session):
+    """
+    Trae estrictamente a los usuarios cuyo rol sea 'alumno'.
+    """
+    return db.query(models.Usuario).filter(models.Usuario.rol == "alumno").all()

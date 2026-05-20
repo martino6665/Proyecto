@@ -11,7 +11,9 @@ import usuarios.crud_alumnos as crud_alumnos
 import usuarios.crud_profesores as crud_profesores
 from database import SessionLocal, engine
 
+# --- INICIALIZACIÓN ---
 models.Base.metadata.create_all(bind=engine)
+
 app = FastAPI(
     title="VisionEducation",
     description="Sistema de gestión de cursos Universitarios",
@@ -99,6 +101,14 @@ def salir_de_curso(alumno_id: int, curso_id: int, db: Session = Depends(get_db))
 
 # --- MÓDULO PROFESORES ---
 
+# AÑADIDO: Endpoint exclusivo que llama correctamente a la función de filtrar alumnos
+@app.get("/profesores/alumnos", response_model=List[dtos.AlumnoResponse], tags=["Profesores"])
+def obtener_lista_de_alumnos(db: Session = Depends(get_db)):
+    """
+    Ruta para que el profesor consulte la lista completa de alumnos en el sistema.
+    """
+    return crud_alumnos.listar_todos_los_alumnos(db)
+
 @app.post("/profesores/cursos/crear", response_model=dtos.CursoResponse, tags=["Profesores"])
 def crear_materia(curso: dtos.CursoCreate, db: Session = Depends(get_db)):
     return crud_cursos.crear_curso(db=db, curso=curso)
@@ -115,7 +125,6 @@ def actualizar_materia(curso_id: int, maestro_id: int, curso_data: dtos.CursoCre
 def eliminar_materia(curso_id: int, maestro_id: int, db: Session = Depends(get_db)):
     return crud_cursos.eliminar_curso_existente(db, curso_id, maestro_id)
 
-# CORRECCIÓN EN ESPEJO: Llama a crud_inscripcion para gestionar la nota en la tabla intermedia
 @app.put("/profesores/calificar/{alumno_id}/{curso_id}", response_model=dtos.SimpleResponse, tags=["Profesores"])
 def asignar_calificacion(alumno_id: int, curso_id: int, calificacion: dtos.CalificacionUpdate, db: Session = Depends(get_db)):
     return crud_inscripcion.calificar_alumno_curso(db, alumno_id, curso_id, calificacion.nota)
