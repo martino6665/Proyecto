@@ -14,6 +14,8 @@ class LoginResponse(BaseModel):
     estado: str   
     mensaje: str
     rol: Optional[str] = None
+    usuario_id: Optional[int] = None  # <--- AÑADE ESTA LÍNEA
+
 
 # NUEVA: Para respuestas estándar de éxito/error (Bajas, Eliminaciones, Notas)
 class SimpleResponse(BaseModel):

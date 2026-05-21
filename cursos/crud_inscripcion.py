@@ -1,3 +1,4 @@
+from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 import models
 import dtos
@@ -7,7 +8,33 @@ import dtos
 def inscribir_alumno(db: Session, inscripcion: dtos.InscripcionCreate):
     """
     Crea el vínculo (inscripción) entre un alumno y un curso en la tabla intermedia.
+    Valida la existencia de las llaves foráneas para evitar colapsos por IDs inexistentes.
     """
+    # 1. VALIDACIÓN DEL ALUMNO: Verifica si el ID enviado desde Kotlin existe en Render
+    alumno_existe = db.query(models.Alumno).filter(models.Alumno.id == inscripcion.alumno_id).first()
+    if not alumno_existe:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Error: El alumno con ID {inscripcion.alumno_id} no existe en el sistema. Vuelve a iniciar sesión."
+        )
+
+    # 2. VALIDACIÓN DEL CURSO: Verifica si el curso seleccionado sigue activo
+    curso_existe = db.query(models.Curso).filter(models.Curso.id == inscripcion.curso_id).first()
+    if not curso_existe:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Error: El curso con ID {inscripcion.curso_id} no existe o fue eliminado por el profesor."
+        )
+
+    # 3. EVITAR DUPLICADOS: Si ya está inscrito, no creamos otra fila idéntica
+    inscripcion_duplicada = obtener_inscripcion(db, inscripcion.alumno_id, inscripcion.curso_id)
+    if inscripcion_duplicada is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Ya te encuentras registrado voluntariamente en esta materia."
+        )
+
+    # Si pasa todas las aduanas, se guarda de forma segura
     db_inscripcion = models.Inscripcion(
         alumno_id=inscripcion.alumno_id,
         curso_id=inscripcion.curso_id,
@@ -66,6 +93,7 @@ def dar_de_baja_curso(db: Session, alumno_id: int, curso_id: int):
     if db_inscripcion:
         db.delete(db_inscripcion)
         db.commit()
+        # CORREGIDO: Retorno unificado en una sola línea y llaves cerradas correctamente
         return {
             "estado": "Exitoso",
             "mensaje": "Baja del curso procesada correctamente."

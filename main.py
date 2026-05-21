@@ -58,7 +58,7 @@ def registrar_profesor(profesor: dtos.ProfesorCreate, db: Session = Depends(get_
     return crud_profesores.crear_profesor(db, profesor)
 
 
-# --- ACCESO / LOGIN ---
+# --- ACCESO / LOGIN (MODIFICADO) ---
 
 @app.post("/login", response_model=dtos.LoginResponse, tags=["Acceso"])
 def login(login_data: dtos.LoginRequest, db: Session = Depends(get_db)):
@@ -68,15 +68,17 @@ def login(login_data: dtos.LoginRequest, db: Session = Depends(get_db)):
     user = db.query(models.Usuario).filter(models.Usuario.nombre_usuario == u_ingresado).first()
     
     if not user:
-        return {"estado": "Error", "mensaje": f"No existe el usuario: {u_ingresado}", "rol": None}
+        return {"estado": "Error", "mensaje": f"No existe el usuario: {u_ingresado}", "rol": None, "usuario_id": None}
     
     if user.password != p_ingresada:
-        return {"estado": "Error", "mensaje": "Contraseña incorrecta", "rol": None}
+        return {"estado": "Error", "mensaje": "Contraseña incorrecta", "rol": None, "usuario_id": None}
     
+    # MEJORA CLAVE: Retornamos el id real del usuario para que Android lo guarde y lo use en las inscripciones
     return {
         "estado": "Exitoso", 
         "mensaje": f"¡Bienvenido de nuevo, {user.nombre}!", 
-        "rol": user.rol
+        "rol": user.rol,
+        "usuario_id": user.id
     }
 
 
@@ -92,6 +94,7 @@ def ver_cursos_inscritos(alumno_id: int, db: Session = Depends(get_db)):
 
 @app.post("/alumnos/inscribir", response_model=dtos.InscripcionResponse, tags=["Alumnos"])
 def inscribirse(inscripcion: dtos.InscripcionCreate, db: Session = Depends(get_db)):
+    # Sincronizado con las aduanas de control de crud_inscripcion.py
     return crud_inscripcion.inscribir_alumno(db, inscripcion)
 
 @app.delete("/alumnos/desinscribir/{alumno_id}/{curso_id}", response_model=dtos.SimpleResponse, tags=["Alumnos"])
@@ -101,7 +104,6 @@ def salir_de_curso(alumno_id: int, curso_id: int, db: Session = Depends(get_db))
 
 # --- MÓDULO PROFESORES ---
 
-# AÑADIDO: Endpoint exclusivo que llama correctamente a la función de filtrar alumnos
 @app.get("/profesores/alumnos", response_model=List[dtos.AlumnoResponse], tags=["Profesores"])
 def obtener_lista_de_alumnos(db: Session = Depends(get_db)):
     """
