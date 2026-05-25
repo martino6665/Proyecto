@@ -103,15 +103,17 @@ def inscribirse(inscripcion: dtos.InscripcionCreate, db: Session = Depends(get_d
 def salir_de_curso(alumno_id: int, curso_id: int, db: Session = Depends(get_db)):
     return crud_inscripcion.dar_de_baja_curso(db, alumno_id, curso_id)
 
-
-# NUEVA: Ruta para que el estudiante realice o actualice la entrega de una tarea asignada
 @app.post("/alumnos/actividades/{actividad_id}/entregar/{alumno_id}", response_model=dtos.EntregaResponse, tags=["Alumnos - Actividades"])
 def entregar_actividad(actividad_id: int, alumno_id: int, entrega: dtos.EntregaCreate, db: Session = Depends(get_db)):
-    # Aduana: Validar que la actividad exista antes de colgar el envío
     actividad = db.query(models.Actividad).filter(models.Actividad.id == actividad_id).first()
     if not actividad:
-        raise HTTPException(status_code=404, detail="La actividad seleccionada no existe o fue dada de baja.")
+        raise HTTPException(status_code=404, detail="La actividad no existe.")
     return crud_alumnos.registrar_entrega_alumno(db, actividad_id, alumno_id, entrega)
+
+# (NUEVA) Agenda Real del Alumno
+@app.get("/alumnos/{alumno_id}/agenda", response_model=List[dtos.EntregaResponse], tags=["Alumnos - Actividades"])
+def ver_agenda_escolar_alumno(alumno_id: int, db: Session = Depends(get_db)):
+    return db.query(models.EntregaActividad).filter(models.EntregaActividad.alumno_id == alumno_id).all()
 
 
 # ==============================================================================
@@ -134,36 +136,39 @@ def ver_materias_asignadas(maestro_id: int, db: Session = Depends(get_db)):
 def actualizar_materia(curso_id: int, maestro_id: int, curso_data: dtos.CursoCreate, db: Session = Depends(get_db)):
     return crud_cursos.actualizar_curso_existente(db, curso_id, maestro_id, curso_data)
 
+# MODIFICACIÓN: Borrado seguro e integral
 @app.delete("/profesores/cursos/eliminar/{curso_id}/{maestro_id}", response_model=dtos.SimpleResponse, tags=["Profesores"])
 def eliminar_materia(curso_id: int, maestro_id: int, db: Session = Depends(get_db)):
-    return crud_cursos.eliminar_curso_existente(db, curso_id, maestro_id)
+    curso = db.query(models.Curso).filter(models.Curso.id == curso_id, models.Curso.id_del_profesor == maestro_id).first()
+    if not curso:
+        raise HTTPException(status_code=404, detail="El curso no existe o no te pertenece.")
+    db.delete(curso)
+    db.commit()
+    return {"estado": "Exitoso", "mensaje": "Curso y su estructura escolar eliminados correctamente."}
 
 @app.put("/profesores/calificar/{alumno_id}/{curso_id}", response_model=dtos.SimpleResponse, tags=["Profesores"])
 def asignar_calificacion(alumno_id: int, curso_id: int, calificacion: dtos.CalificacionUpdate, db: Session = Depends(get_db)):
     return crud_inscripcion.calificar_alumno_curso(db, alumno_id, curso_id, calificacion.nota)
 
+# (NUEVA) Pendientes del Maestro
+@app.get("/profesores/{maestro_id}/pendientes", response_model=List[dtos.EntregaResponse], tags=["Profesores - Actividades"])
+def ver_pendientes_calificar_maestro(maestro_id: int, db: Session = Depends(get_db)):
+    return db.query(models.EntregaActividad).join(models.Actividad).join(models.Curso).filter(
+        models.Curso.id_del_profesor == maestro_id,
+        models.EntregaActividad.nota_obtenida == None
+    ).all()
 
-# --- NUEVAS RUTAS SINCRONIZADAS PARA ACTIVIDADES Y EVALUACIÓN ---
 
-# 1. El profesor diseña y añade una tarea a un curso de su propiedad
+# --- RUTAS DE ACTIVIDADES ---
+
 @app.post("/profesores/cursos/{curso_id}/actividades", response_model=dtos.ActividadResponse, tags=["Profesores - Actividades"])
 def asignar_actividad_a_materia(curso_id: int, actividad: dtos.ActividadCreate, db: Session = Depends(get_db)):
-    curso = db.query(models.Curso).filter(models.Curso.id == curso_id).first()
-    if not curso:
-        raise HTTPException(status_code=404, detail="El curso no existe en la base de datos.")
     return crud_profesores.crear_actividad_para_curso(db, curso_id, actividad)
 
-
-# 2. El profesor revisa qué alumnos se unieron específicamente a este curso
 @app.get("/profesores/cursos/{curso_id}/alumnos-inscritos", response_model=List[dtos.UsuarioResponse], tags=["Profesores - Actividades"])
 def ver_alumnos_activos_en_curso(curso_id: int, db: Session = Depends(get_db)):
-    curso = db.query(models.Curso).filter(models.Curso.id == curso_id).first()
-    if not curso:
-        raise HTTPException(status_code=404, detail="Curso no encontrado.")
     return crud_profesores.obtener_alumnos_inscritos_en_materia(db, curso_id)
 
-
-# 3. El profesor califica y deja comentarios sobre una entrega enviada por un alumno
 @app.put("/profesores/entregas/{entrega_id}/calificar", response_model=dtos.EntregaResponse, tags=["Profesores - Actividades"])
 def evaluar_entrega_alumno(entrega_id: int, evaluacion: dtos.CalificarEntregaRequest, db: Session = Depends(get_db)):
     return crud_profesores.calificar_entrega_de_alumno(db, entrega_id, evaluacion)

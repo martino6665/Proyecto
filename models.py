@@ -12,17 +12,12 @@ class Usuario(Base):
     nombre = Column(String(100), index=True)
     apellido_paterno = Column(String(100))
     apellido_materno = Column(String(100))
-    fecha_nacimiento = Column(Date)  # Almacena fechas reales. Requiere parseo en el CRUD.
-    rol = Column(String(50), nullable=False)  # "alumno" o "profesor"
+    fecha_nacimiento = Column(Date)
+    rol = Column(String(50), nullable=False)
 
-    # --- RELACIONES ---
-    # Si el usuario es profesor, mapea los cursos que imparte
+    # RELACIONES
     cursos_dictados = relationship("Curso", back_populates="profesor", cascade="all, delete-orphan")
-    
-    # Si el usuario es alumno, mapea las inscripciones que posee
     inscripciones_alumno = relationship("Inscripcion", back_populates="alumno", cascade="all, delete-orphan")
-    
-    # Entregas de actividades que ha realizado el alumno
     entregas_realizadas = relationship("EntregaActividad", back_populates="alumno", cascade="all, delete-orphan")
 
 
@@ -35,16 +30,11 @@ class Curso(Base):
     descripcion = Column(String(500)) 
     fecha_de_inicio = Column(Date)
     fecha_de_fin = Column(Date)
-    color_banner = Column(String(50), default="#3F51B5") # Sincronizado para las portadas de la UI
+    color_banner = Column(String(50), default="#3F51B5")
 
-    # --- RELACIONES ---
-    # Enlace directo al profesor que imparte la materia
+    # RELACIONES
     profesor = relationship("Usuario", back_populates="cursos_dictados")
-    
-    # Enlace a la tabla intermedia de inscripciones para auditar alumnos y notas
     inscripciones = relationship("Inscripcion", back_populates="curso", cascade="all, delete-orphan")
-    
-    # Actividades asignadas a este curso por el profesor
     actividades = relationship("Actividad", back_populates="curso", cascade="all, delete-orphan")
 
 
@@ -54,14 +44,13 @@ class Inscripcion(Base):
     id = Column(Integer, primary_key=True, index=True)
     alumno_id = Column(Integer, ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False)
     curso_id = Column(Integer, ForeignKey("cursos.id", ondelete="CASCADE"), nullable=False)
-    calificacion = Column(Integer, nullable=True)  # Calificación final estática de la materia
+    calificacion = Column(Integer, nullable=True)
 
-    # --- RELACIONES RELATIVAS ---
+    # RELACIONES
     alumno = relationship("Usuario", back_populates="inscripciones_alumno")
     curso = relationship("Curso", back_populates="inscripciones")
 
 
-# --- NUEVA ENTIDAD: ACTIVIDADES CREADAS POR EL MAESTRO ---
 class Actividad(Base):
     __tablename__ = "actividades"
 
@@ -70,26 +59,28 @@ class Actividad(Base):
     titulo = Column(String(255), nullable=False)
     descripcion = Column(String(1000), nullable=True)
     puntos_maximos = Column(Float, default=100.0)
+    
+    # MEJORA: Fecha límite para que el alumno vea la urgencia en su calendario
+    fecha_limite = Column(DateTime, nullable=True) 
 
-    # Relaciones
+    # RELACIONES
     curso = relationship("Curso", back_populates="actividades")
     entregas = relationship("EntregaActividad", back_populates="actividad", cascade="all, delete-orphan")
 
 
-# --- NUEVA ENTIDAD: ENTREGAS REALIZADAS POR LOS ALUMNOS Y EVALUADAS POR EL MAESTRO ---
 class EntregaActividad(Base):
     __tablename__ = "entregas_actividades"
 
     id = Column(Integer, primary_key=True, index=True)
     actividad_id = Column(Integer, ForeignKey("actividades.id", ondelete="CASCADE"), nullable=False)
     alumno_id = Column(Integer, ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False)
-    contenido_entrega = Column(String(2000), nullable=False)  # Puede ser texto explicativo, respuesta o un link/url externo
+    contenido_entrega = Column(String(2000), nullable=False)
     fecha_entrega = Column(DateTime, default=datetime.datetime.utcnow)
     
-    # Feedback y evaluación del profesor (Serán NULL hasta que el profesor califique la entrega)
+    # Feedback
     nota_obtenida = Column(Float, nullable=True)
     comentario_profesor = Column(String(1000), nullable=True)
 
-    # Relaciones
+    # RELACIONES
     actividad = relationship("Actividad", back_populates="entregas")
     alumno = relationship("Usuario", back_populates="entregas_realizadas")
