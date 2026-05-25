@@ -3,22 +3,28 @@ from sqlalchemy.orm import Session
 import models
 import dtos
 
-# --- OPERACIONES BÁSICAS ---
+# ==============================================================================
+# --- 📝 OPERACIONES BÁSICAS DE INSCRIPCIÓN ---
+# ==============================================================================
 
 def inscribir_alumno(db: Session, inscripcion: dtos.InscripcionCreate):
     """
     Crea el vínculo (inscripción) entre un alumno y un curso en la tabla intermedia.
-    Valida la existencia de las llaves foráneas para evitar colapsos por IDs inexistentes.
+    Valida la existencia de las llaves foráneas y evita duplicaciones en la base de datos.
     """
-    # 1. VALIDACIÓN DEL ALUMNO: Verifica si el ID enviado desde Kotlin existe en Render
-    alumno_existe = db.query(models.Alumno).filter(models.Alumno.id == inscripcion.alumno_id).first()
+    # 1. VALIDACIÓN DEL ALUMNO: Interroga a la tabla 'Usuario' verificando que el rol sea correcto
+    alumno_existe = db.query(models.Usuario).filter(
+        models.Usuario.id == inscripcion.alumno_id,
+        models.Usuario.rol == "alumno"
+    ).first()
+    
     if not alumno_existe:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Error: El alumno con ID {inscripcion.alumno_id} no existe en el sistema. Vuelve a iniciar sesión."
         )
 
-    # 2. VALIDACIÓN DEL CURSO: Verifica si el curso seleccionado sigue activo
+    # 2. VALIDACIÓN DEL CURSO: Verifica si el curso seleccionado sigue activo en Render
     curso_existe = db.query(models.Curso).filter(models.Curso.id == inscripcion.curso_id).first()
     if not curso_existe:
         raise HTTPException(
@@ -26,15 +32,15 @@ def inscribir_alumno(db: Session, inscripcion: dtos.InscripcionCreate):
             detail=f"Error: El curso con ID {inscripcion.curso_id} no existe o fue eliminado por el profesor."
         )
 
-    # 3. EVITAR DUPLICADOS: Si ya está inscrito, no creamos otra fila idéntica
+    # 3. EVITAR DUPLICADOS (VERIFICADO): Si el alumno ya está en el curso, lanzamos un estado 409 Conflict
     inscripcion_duplicada = obtener_inscripcion(db, inscripcion.alumno_id, inscripcion.curso_id)
     if inscripcion_duplicada is not None:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Ya te encuentras registrado voluntariamente en esta materia."
+            status_code=status.HTTP_409_CONFLICT,  # Verificado: Código HTTP exacto para registros duplicados
+            detail="Ya te encuentras registrado oficialmente en esta materia."
         )
 
-    # Si pasa todas las aduanas, se guarda de forma segura
+    # Si pasa todas las aduanas de control, se guarda de forma segura en la tabla intermedia
     db_inscripcion = models.Inscripcion(
         alumno_id=inscripcion.alumno_id,
         curso_id=inscripcion.curso_id,
@@ -56,50 +62,53 @@ def obtener_inscripcion(db: Session, alumno_id: int, curso_id: int):
     ).first()
 
 
-# --- GESTIÓN DE CALIFICACIONES ---
+# ==============================================================================
+# --- 📊 GESTIÓN DE CALIFICACIONES GLOBALES ---
+# ==============================================================================
 
 def calificar_alumno_curso(db: Session, alumno_id: int, curso_id: int, nota: int):
     """
-    Permite al profesor asignar o modificar la nota de un alumno en un curso específico.
-    Retorna un diccionario mapeado con la estructura estricta de dtos.SimpleResponse.
+    Permite al profesor asignar o modificar la nota de promedio final de un alumno en un curso.
+    Retorna la estructura estricta tipada de dtos.SimpleResponse para Retrofit.
     """
     db_inscripcion = obtener_inscripcion(db, alumno_id, curso_id)
     
     if not db_inscripcion:
-        return {
-            "estado": "Error",
-            "mensaje": f"No se encontró ninguna inscripción para el alumno {alumno_id} en el curso {curso_id}."
-        }
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No se encontró ninguna inscripción para el alumno {alumno_id} en el curso {curso_id}."
+        )
         
     db_inscripcion.calificacion = nota
     db.commit()
     db.refresh(db_inscripcion)
     
-    return {
-        "estado": "Exitoso",
-        "mensaje": f"Calificación de {nota} asignada correctamente al alumno."
-    }
+    return dtos.SimpleResponse(
+        estado="Exitoso",
+        mensaje=f"Calificación de {nota} asignada correctamente al alumno."
+    )
 
 
-# --- ELIMINACIÓN / BAJAS ---
+# ==============================================================================
+# --- ❌ ELIMINACIÓN / BAJAS ---
+# ==============================================================================
 
 def dar_de_baja_curso(db: Session, alumno_id: int, curso_id: int):
     """
     Elimina permanentemente la relación de la tabla intermedia (Darse de baja).
-    Retorna un diccionario mapeado con la estructura estricta de dtos.SimpleResponse.
+    Retorna la estructura estricta tipada de dtos.SimpleResponse para Retrofit.
     """
     db_inscripcion = obtener_inscripcion(db, alumno_id, curso_id)
     
     if db_inscripcion:
         db.delete(db_inscripcion)
         db.commit()
-        # CORREGIDO: Retorno unificado en una sola línea y llaves cerradas correctamente
-        return {
-            "estado": "Exitoso",
-            "mensaje": "Baja del curso procesada correctamente."
-        }
+        return dtos.SimpleResponse(
+            estado="Exitoso",
+            mensaje="Baja del curso procesada correctamente."
+        )
         
-    return {
-        "estado": "Error",
-        "mensaje": "No se pudo procesar la baja porque el alumno no está inscrito en este curso."
-    }
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="No se pudo procesar la baja porque el alumno no está inscrito en este curso."
+    )

@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 import datetime
-from typing import Optional
+from typing import Optional, List
 
 # ==========================================
 # --- ESQUEMAS DE ACCESO Y RESPUESTAS SIMPLES ---
@@ -11,13 +11,13 @@ class LoginRequest(BaseModel):
     password: str
 
 class LoginResponse(BaseModel):
-    estado: str   
+    estado: str 
     mensaje: str
     rol: Optional[str] = None
-    usuario_id: Optional[int] = None  # <--- AÑADE ESTA LÍNEA
+    usuario_id: Optional[int] = None
 
 
-# NUEVA: Para respuestas estándar de éxito/error (Bajas, Eliminaciones, Notas)
+# Para respuestas estándar de éxito/error (Bajas, Eliminaciones, Notas)
 class SimpleResponse(BaseModel):
     estado: str
     mensaje: str
@@ -35,7 +35,7 @@ class PersonaBase(BaseModel):
     apellido_materno: str
     fecha_nacimiento: datetime.date
 
-# MEJORA: Recibe la fecha como String para que FastAPI no truene si Postman o Android mandan formatos con variaciones
+# Recibe la fecha como String para que FastAPI no truene si Postman o Android mandan formatos con variaciones
 class AlumnoCreate(BaseModel):
     nombre_usuario: str
     password: str
@@ -50,7 +50,7 @@ class AlumnoResponse(PersonaBase):
     class Config:
         from_attributes = True
 
-# MEJORA: Igual que en alumnos, la entrada de fechas se flexibiliza a String para el transporte seguro
+# La entrada de fechas se flexibiliza a String para el transporte seguro
 class ProfesorCreate(BaseModel):
     nombre_usuario: str
     password: str
@@ -65,7 +65,7 @@ class ProfesorResponse(PersonaBase):
     class Config:
         from_attributes = True
 
-# NUEVA: Molde requerido para el nuevo endpoint global de búsqueda de usuarios
+# Molde requerido para el nuevo endpoint global de búsqueda de usuarios
 class UsuarioResponse(PersonaBase):
     id: int
     rol: str
@@ -74,7 +74,7 @@ class UsuarioResponse(PersonaBase):
 
 
 # ==========================================
-# --- MÓDULO CURSOS E INSCRIPCIONES ---
+# --- MÓDULO CURSES E INSCRIPCIONES ---
 # ==========================================
 
 class CursoBase(BaseModel):
@@ -83,14 +83,16 @@ class CursoBase(BaseModel):
     descripcion: str
     fecha_de_inicio: datetime.date 
     fecha_de_fin: datetime.date
+    color_banner: Optional[str] = "#3F51B5" # SINCRONIZADO: Soporte nativo para la UI
 
-# MEJORA: Permite que el profesor envíe las fechas del nuevo curso como String para su procesamiento
+# Permite que el profesor envíe las fechas del nuevo curso como String para su procesamiento
 class CursoCreate(BaseModel):
     nombre_del_curso: str
     id_del_profesor: int
     descripcion: str
     fecha_de_inicio: str  # "YYYY-MM-DD"
     fecha_de_fin: str     # "YYYY-MM-DD"
+    color_banner: Optional[str] = "#3F51B5" # SINCRONIZADO: Recibe el hex desde Android
 
 class CursoResponse(CursoBase):
     id: int 
@@ -109,3 +111,52 @@ class InscripcionResponse(InscripcionCreate):
 
 class CalificacionUpdate(BaseModel):
     nota: int
+
+
+# ==========================================
+# --- NUEVO MÓDULO: ACTIVIDADES (PROFESOR) ---
+# ==========================================
+
+class ActividadCreate(BaseModel):
+    titulo: str
+    descripcion: Optional[str] = None
+    puntos_maximos: Optional[float] = 100.0
+
+class ActividadResponse(BaseModel):
+    id: int
+    curso_id: int
+    titulo: str
+    descripcion: Optional[str]
+    puntos_maximos: float
+
+    class Config:
+        from_attributes = True
+
+
+# ==========================================
+# --- NUEVO MÓDULO: ENTREGAS (ALUMNO) ---
+# ==========================================
+
+class EntregaCreate(BaseModel):
+    contenido_entrega: str  # Texto de la respuesta o URL que manda el alumno
+
+class EntregaResponse(BaseModel):
+    id: int
+    actividad_id: int
+    alumno_id: int
+    contenido_entrega: str
+    fecha_entrega: datetime.datetime
+    nota_obtenida: Optional[float] = None       # Nulo hasta que el profesor califique
+    comentario_profesor: Optional[str] = None   # Nulo hasta que el profesor califique
+
+    class Config:
+        from_attributes = True
+
+
+# ==========================================
+# --- NUEVO MÓDULO: CALIFICAR (PROFESOR) ---
+# ==========================================
+
+class CalificarEntregaRequest(BaseModel):
+    nota_obtenida: float
+    comentario_profesor: Optional[str] = None

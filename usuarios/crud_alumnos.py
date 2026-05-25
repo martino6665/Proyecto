@@ -3,7 +3,9 @@ from sqlalchemy.orm import Session
 import models
 import dtos
 
-# --- GESTIÓN DE IDENTIDAD ---
+# ==============================================================================
+# --- 👤 GESTIÓN DE IDENTIDAD ---
+# ==============================================================================
 
 def crear_alumno(db: Session, usuario: dtos.AlumnoCreate):
     """
@@ -20,7 +22,7 @@ def crear_alumno(db: Session, usuario: dtos.AlumnoCreate):
         apellido_paterno=usuario.apellido_paterno.strip(),
         apellido_materno=usuario.apellido_materno.strip(),
         fecha_nacimiento=fecha_nacimiento_date,
-        rol="alumno"  # ASIGNACIÓN AUTOMÁTICA Y SEGURA
+        rol="alumno"  # Asignación automática y segura
     )
     db.add(db_usuario)
     db.commit()
@@ -35,7 +37,6 @@ def find_usuario_por_id(db: Session, usuario_id: int):
     return db.query(models.Usuario).filter(models.Usuario.id == usuario_id).first()
 
 
-# NUEVA: Requerida por el endpoint general de búsquedas del main.py
 def buscar_usuarios_global(db: Session, query: str = ""):
     """
     Busca usuarios (alumnos o profesores) cuyo nombre_usuario, nombre o apellido
@@ -51,7 +52,9 @@ def buscar_usuarios_global(db: Session, query: str = ""):
     ).all()
 
 
-# --- CONSULTAS DEL ALUMNO ---
+# ==============================================================================
+# --- 📚 CONSULTAS Y ENTREGAS DEL ALUMNO ---
+# ==============================================================================
 
 def listar_mis_cursos_alumno(db: Session, alumno_id: int):
     """
@@ -63,8 +66,39 @@ def listar_mis_cursos_alumno(db: Session, alumno_id: int):
         models.Inscripcion.alumno_id == alumno_id
     ).all()
 
+
 def listar_todos_los_alumnos(db: Session):
     """
     Trae estrictamente a los usuarios cuyo rol sea 'alumno'.
     """
     return db.query(models.Usuario).filter(models.Usuario.rol == "alumno").all()
+
+
+# NUEVA MEJORA EN LÍNEA RECTA: El alumno sube o actualiza su tarea
+def registrar_entrega_alumno(db: Session, actividad_id: int, alumno_id: int, entrega: dtos.EntregaCreate):
+    """
+    Permite al alumno registrar el contenido de su tarea para una actividad específica.
+    Si ya existía un envío, sobreescribe el texto y actualiza la estampa de tiempo.
+    """
+    entrega_previa = db.query(models.EntregaActividad).filter(
+        models.EntregaActividad.actividad_id == actividad_id,
+        models.EntregaActividad.alumno_id == alumno_id
+    ).first()
+
+    if entrega_previa:
+        entrega_previa.contenido_entrega = entrega.contenido_entrega.strip()
+        entrega_previa.fecha_entrega = datetime.utcnow()  # Actualiza la fecha de modificación
+        db.commit()
+        db.refresh(entrega_previa)
+        return entrega_previa
+
+    # Si es su primer intento de entrega, inserta el nuevo registro relacional
+    db_entrega = models.EntregaActividad(
+        actividad_id=actividad_id,
+        alumno_id=alumno_id,
+        contenido_entrega=entrega.contenido_entrega.strip()
+    )
+    db.add(db_entrega)
+    db.commit()
+    db.refresh(db_entrega)
+    return db_entrega
