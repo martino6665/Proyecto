@@ -47,16 +47,20 @@ def crear_actividad_para_curso(db: Session, curso_id: int, actividad: dtos.Activ
     """
     El profesor inserta una nueva actividad/tarea vinculada a uno de sus cursos activos.
     """
-    # Convertimos los strings recibidos de la App a objetos de fecha si existen
-    f_inicio = datetime.strptime(actividad.fecha_inicio, "%Y-%m-%d").date() if actividad.fecha_inicio else None
-    f_limite = datetime.strptime(actividad.fecha_limite, "%Y-%m-%d").date() if actividad.fecha_limite else None
+    # Mejora: Validar que el string no esté vacío antes de parsear
+    f_inicio = None
+    if actividad.fecha_inicio and actividad.fecha_inicio.strip() != "":
+        f_inicio = datetime.strptime(actividad.fecha_inicio.strip(), "%Y-%m-%d").date()
+
+    f_limite = None
+    if actividad.fecha_limite and actividad.fecha_limite.strip() != "":
+        f_limite = datetime.strptime(actividad.fecha_limite.strip(), "%Y-%m-%d").date()
 
     db_actividad = models.Actividad(
         curso_id=curso_id,
         titulo=actividad.titulo.strip(),
         descripcion=actividad.descripcion.strip() if actividad.descripcion else None,
         puntos_maximos=actividad.puntos_maximos,
-        # AÑADIMOS ESTOS DOS CAMPOS QUE FALTABAN
         fecha_inicio=f_inicio,
         fecha_limite=f_limite
     )

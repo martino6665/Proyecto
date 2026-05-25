@@ -67,10 +67,13 @@ def obtener_inscripcion(db: Session, alumno_id: int, curso_id: int):
 # ==============================================================================
 
 def calificar_alumno_curso(db: Session, alumno_id: int, curso_id: int, nota: int):
-    """
-    Permite al profesor asignar o modificar la nota de promedio final de un alumno en un curso.
-    Retorna la estructura estricta tipada de dtos.SimpleResponse para Retrofit.
-    """
+    # VALIDACIÓN EXTRA: Rango de calificación
+    if nota < 0 or nota > 100:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La calificación debe estar entre 0 y 100."
+        )
+
     db_inscripcion = obtener_inscripcion(db, alumno_id, curso_id)
     
     if not db_inscripcion:
