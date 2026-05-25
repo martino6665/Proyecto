@@ -60,14 +60,14 @@ class Actividad(Base):
     descripcion = Column(String(1000), nullable=True)
     puntos_maximos = Column(Float, default=100.0)
     
-    # MEJORA: Fecha límite para que el alumno vea la urgencia en su calendario
-    fecha_limite = Column(DateTime, nullable=True) 
+    # ACTUALIZACIÓN: Incluimos fecha_inicio y cambiamos fecha_limite a Date para coincidir con el App
+    fecha_inicio = Column(Date, nullable=True) 
+    fecha_limite = Column(Date, nullable=True) 
 
     # RELACIONES
     curso = relationship("Curso", back_populates="actividades")
     entregas = relationship("EntregaActividad", back_populates="actividad", cascade="all, delete-orphan")
-
-
+    
 class EntregaActividad(Base):
     __tablename__ = "entregas_actividades"
 

@@ -163,7 +163,16 @@ def ver_pendientes_calificar_maestro(maestro_id: int, db: Session = Depends(get_
 
 @app.post("/profesores/cursos/{curso_id}/actividades", response_model=dtos.ActividadResponse, tags=["Profesores - Actividades"])
 def asignar_actividad_a_materia(curso_id: int, actividad: dtos.ActividadCreate, db: Session = Depends(get_db)):
+    # Validación extra: Verificar que el curso existe
+    curso = db.query(models.Curso).filter(models.Curso.id == curso_id).first()
+    if not curso:
+        raise HTTPException(status_code=404, detail="El curso no existe.")
     return crud_profesores.crear_actividad_para_curso(db, curso_id, actividad)
+
+# ¡ESTA ES LA RUTA QUE TE FALTABA PARA VERLAS EN LA APP!
+@app.get("/profesores/cursos/{curso_id}/actividades", response_model=List[dtos.ActividadResponse], tags=["Profesores - Actividades"])
+def obtener_actividades_por_curso(curso_id: int, db: Session = Depends(get_db)):
+    return db.query(models.Actividad).filter(models.Actividad.curso_id == curso_id).all()
 
 @app.get("/profesores/cursos/{curso_id}/alumnos-inscritos", response_model=List[dtos.UsuarioResponse], tags=["Profesores - Actividades"])
 def ver_alumnos_activos_en_curso(curso_id: int, db: Session = Depends(get_db)):
