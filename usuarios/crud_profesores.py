@@ -44,30 +44,36 @@ def listar_mis_cursos_profesor(db: Session, maestro_id: int):
 
 
 def crear_actividad_para_curso(db: Session, curso_id: int, actividad: dtos.ActividadCreate):
-    """
-    El profesor inserta una nueva actividad/tarea vinculada a uno de sus cursos activos.
-    """
-    # Mejora: Validar que el string no esté vacío antes de parsear
-    f_inicio = None
-    if actividad.fecha_inicio and actividad.fecha_inicio.strip() != "":
-        f_inicio = datetime.strptime(actividad.fecha_inicio.strip(), "%Y-%m-%d").date()
+    try:
+        print(f"DEBUG: Intentando crear actividad en curso {curso_id}")
+        print(f"DEBUG: Datos recibidos: {actividad}")
+        
+        # Parseo con manejo de errores
+        f_inicio = None
+        if actividad.fecha_inicio:
+            f_inicio = datetime.strptime(actividad.fecha_inicio.strip(), "%Y-%m-%d").date()
+            
+        f_limite = None
+        if actividad.fecha_limite:
+            f_limite = datetime.strptime(actividad.fecha_limite.strip(), "%Y-%m-%d").date()
 
-    f_limite = None
-    if actividad.fecha_limite and actividad.fecha_limite.strip() != "":
-        f_limite = datetime.strptime(actividad.fecha_limite.strip(), "%Y-%m-%d").date()
-
-    db_actividad = models.Actividad(
-        curso_id=curso_id,
-        titulo=actividad.titulo.strip(),
-        descripcion=actividad.descripcion.strip() if actividad.descripcion else None,
-        puntos_maximos=actividad.puntos_maximos,
-        fecha_inicio=f_inicio,
-        fecha_limite=f_limite
-    )
-    db.add(db_actividad)
-    db.commit()
-    db.refresh(db_actividad)
-    return db_actividad
+        db_actividad = models.Actividad(
+            curso_id=curso_id,
+            titulo=actividad.titulo.strip(),
+            descripcion=actividad.descripcion.strip() if actividad.descripcion else None,
+            puntos_maximos=float(actividad.puntos_maximos),
+            fecha_inicio=f_inicio,
+            fecha_limite=f_limite
+        )
+        db.add(db_actividad)
+        db.commit()
+        db.refresh(db_actividad)
+        return db_actividad
+        
+    except Exception as e:
+        print(f"ERROR CRÍTICO EN CRUD: {str(e)}") # ESTO SALDRÁ EN TU TERMINAL
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error en servidor: {str(e)}")
 
 def obtener_alumnos_inscritos_en_materia(db: Session, curso_id: int):
     """

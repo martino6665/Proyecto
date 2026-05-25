@@ -111,20 +111,31 @@ def eliminar_curso_existente(db: Session, curso_id: int, maestro_id: int):
 # ==========================================
 # --- NUEVA LÓGICA: ACTIVIDADES ESCUELA ---
 # ==========================================
-
 def crear_actividad_para_curso(db: Session, curso_id: int, actividad: dtos.ActividadCreate):
     """Inserta una nueva tarea/actividad asignada por el profesor dentro de un curso."""
+    
+    # 1. Parseo seguro de fechas (Date)
+    f_inicio = None
+    if actividad.fecha_inicio and actividad.fecha_inicio.strip():
+        f_inicio = datetime.strptime(actividad.fecha_inicio.strip(), "%Y-%m-%d").date()
+    
+    f_limite = None
+    if actividad.fecha_limite and actividad.fecha_limite.strip():
+        f_limite = datetime.strptime(actividad.fecha_limite.strip(), "%Y-%m-%d").date()
+
+    # 2. Creación del modelo con los campos nuevos
     db_actividad = models.Actividad(
         curso_id=curso_id,
         titulo=actividad.titulo.strip(),
         descripcion=actividad.descripcion.strip() if actividad.descripcion else None,
-        puntos_maximos=actividad.puntos_maximos
+        puntos_maximos=actividad.puntos_maximos,
+        fecha_inicio=f_inicio,  # Añadido
+        fecha_limite=f_limite   # Añadido
     )
     db.add(db_actividad)
     db.commit()
     db.refresh(db_actividad)
     return db_actividad
-
 
 def registrar_entrega_alumno(db: Session, actividad_id: int, alumno_id: int, entrega: dtos.EntregaCreate):
     """Inserta la respuesta o entrega de la tarea por parte de un estudiante."""
