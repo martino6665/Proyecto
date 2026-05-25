@@ -120,9 +120,9 @@ class CalificacionUpdate(BaseModel):
 class ActividadCreate(BaseModel):
     titulo: str
     descripcion: Optional[str] = None
-    puntos_maximos: Optional[float] = 100.0
-    # Agregamos los campos que faltaban para que coincidan con Kotlin
-    fecha_inicio: Optional[str] = None
+    puntos_maximos: float = 100.0
+    # Aseguramos que los campos sean opcionales y de tipo String para recibir "YYYY-MM-DD"
+    fecha_inicio: Optional[str] = None 
     fecha_limite: Optional[str] = None
 
 class ActividadResponse(BaseModel):
@@ -131,9 +131,9 @@ class ActividadResponse(BaseModel):
     titulo: str
     descripcion: Optional[str]
     puntos_maximos: float
-    # Agregamos estos para que el servidor también los devuelva al consultar
-    fecha_inicio: Optional[str] = None
-    fecha_limite: Optional[str] = None
+    # Cambiamos a Optional[datetime.date] para que Pydantic maneje la serialización
+    fecha_inicio: Optional[datetime.date] = None
+    fecha_limite: Optional[datetime.date] = None
 
     class Config:
         from_attributes = True

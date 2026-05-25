@@ -46,16 +46,19 @@ def listar_mis_cursos_profesor(db: Session, maestro_id: int):
 def crear_actividad_para_curso(db: Session, curso_id: int, actividad: dtos.ActividadCreate):
     try:
         print(f"DEBUG: Intentando crear actividad en curso {curso_id}")
-        print(f"DEBUG: Datos recibidos: {actividad}")
         
-        # Parseo con manejo de errores
-        f_inicio = None
-        if actividad.fecha_inicio:
-            f_inicio = datetime.strptime(actividad.fecha_inicio.strip(), "%Y-%m-%d").date()
-            
-        f_limite = None
-        if actividad.fecha_limite:
-            f_limite = datetime.strptime(actividad.fecha_limite.strip(), "%Y-%m-%d").date()
+        # Parseo seguro con validación de existencia
+        def parse_fecha(fecha_str):
+            if not fecha_str or fecha_str.strip() == "":
+                return None
+            try:
+                return datetime.strptime(fecha_str.strip(), "%Y-%m-%d").date()
+            except ValueError:
+                # Si el formato no es YYYY-MM-DD, devolvemos None para no romper el servidor
+                return None
+
+        f_inicio = parse_fecha(actividad.fecha_inicio)
+        f_limite = parse_fecha(actividad.fecha_limite)
 
         db_actividad = models.Actividad(
             curso_id=curso_id,
@@ -71,10 +74,11 @@ def crear_actividad_para_curso(db: Session, curso_id: int, actividad: dtos.Activ
         return db_actividad
         
     except Exception as e:
-        print(f"ERROR CRÍTICO EN CRUD: {str(e)}") # ESTO SALDRÁ EN TU TERMINAL
+        print(f"ERROR CRÍTICO EN CRUD: {str(e)}") 
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error en servidor: {str(e)}")
-
+        # Ahora el mensaje de error es más específico para ayudarte a depurar
+        raise HTTPException(status_code=500, detail=f"Error en servidor al parsear datos: {str(e)}")
+    
 def obtener_alumnos_inscritos_en_materia(db: Session, curso_id: int):
     """
     El profesor consulta la lista de alumnos registrados oficialmente en su curso.

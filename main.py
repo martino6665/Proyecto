@@ -163,11 +163,20 @@ def ver_pendientes_calificar_maestro(maestro_id: int, db: Session = Depends(get_
 
 @app.post("/profesores/cursos/{curso_id}/actividades", response_model=dtos.ActividadResponse, tags=["Profesores - Actividades"])
 def asignar_actividad_a_materia(curso_id: int, actividad: dtos.ActividadCreate, db: Session = Depends(get_db)):
-    # Validación extra: Verificar que el curso existe
-    curso = db.query(models.Curso).filter(models.Curso.id == curso_id).first()
-    if not curso:
-        raise HTTPException(status_code=404, detail="El curso no existe.")
-    return crud_profesores.crear_actividad_para_curso(db, curso_id, actividad)
+    try:
+        # Validación básica de existencia del curso
+        curso = db.query(models.Curso).filter(models.Curso.id == curso_id).first()
+        if not curso:
+            raise HTTPException(status_code=404, detail="El curso no existe.")
+        
+        # Llamada al CRUD
+        return crud_profesores.crear_actividad_para_curso(db, curso_id, actividad)
+        
+    except Exception as e:
+        # Esto te permitirá ver el error real en la terminal de VS Code
+        print(f"Error en endpoint asignar_actividad: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
+
 
 # ¡ESTA ES LA RUTA QUE TE FALTABA PARA VERLAS EN LA APP!
 @app.get("/profesores/cursos/{curso_id}/actividades", response_model=List[dtos.ActividadResponse], tags=["Profesores - Actividades"])
